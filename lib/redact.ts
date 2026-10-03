@@ -39,8 +39,10 @@ const URL_MARK_RE = new RegExp(`${URL_MARK_OPEN}(\\d+)${URL_MARK_CLOSE}`, "g");
 
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
+// Messages may be in Spanish or English, so each keyword has both forms
+// where they differ ("código"/"codigo"/"code", "contraseña"/"password").
 const SECRET_KEYWORDS_RE =
-  /\b(contraseña|contrasena|password|nip|pin|código|codigo|token|clave)\b(\s*(?:es|is|[:=])?\s*)([^\s.,;!?]+)/gi;
+  /\b(contraseña|contrasena|password|nip|pin|código|codigo|code|token|clave)\b(\s*(?:es|is|[:=])?\s*)([^\s.,;!?]+)/gi;
 
 // Standard 18-character CURP shape: 4 letters, YYMMDD, sex, state, 3 consonants, homoclave, check digit.
 const CURP_RE =

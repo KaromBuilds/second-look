@@ -91,9 +91,10 @@ export default function Home() {
             id="message"
             name="message"
             rows={8}
+            cols={1}
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            placeholder="Hola, soy tu proveedor, cambiamos de cuenta bancaria..."
+            placeholder="Hi, this is your supplier, we changed bank accounts..."
             className="w-full resize-none rounded-2xl border border-zinc-200 bg-white p-4 text-lg leading-relaxed text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
           />
         </div>

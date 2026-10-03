@@ -111,8 +111,50 @@
   green note's number match exactly, and that nothing overflows at 390px
   while typing a long message.
 
+## 2026-10-03 — Feature 2 fix: English-only UI + real-Safari wrap bug
+
+- The textarea placeholder was still in Spanish
+  ("Hola, soy tu proveedor..."); every other visible string was already
+  English. Fixed to "Hi, this is your supplier, we changed bank
+  accounts...". Every user-facing string in the app must be English per the
+  packet's "UI language: English" rule — the message the owner *pastes* is
+  expected to be Spanish or English, but the app's own copy, and later
+  Gemini's verdict/steps and the pattern library's `name`/`red_flags`/
+  `safe_steps` (Features 4 and 6), are not.
+- Because messages may arrive in either language, `lib/redact.ts`'s
+  secret-keyword list needed an English counterpart for every Spanish-only
+  entry: added `code` alongside `código`/`codigo` (`password`, `NIP`, `PIN`,
+  `token` already read identically in both languages). CURP/RFC/CLABE/
+  card/phone/email detection were already language-independent (they match
+  on shape, not words), so those needed no change; added a test confirming
+  CURP + phone redaction inside an English sentence.
+- The reported "placeholder wraps into 3 short lines in real Safari even
+  though the box is wide" was real — the Chrome DevTools Protocol check in
+  the prior entry wasn't enough, because the bug is WebKit-specific. Could
+  not reproduce it with a screenshot tool here: `screencapture` and
+  Safari's own `do JavaScript` AppleEvent both require macOS permissions
+  (Screen Recording; "Allow JavaScript from Apple Events", which itself
+  needs writing a sandboxed `com.apple.Safari` preference) not available to
+  this process. Installed `playwright` + its real WebKit 26.6 browser
+  instead (no OS permissions needed, since it talks to its own browser
+  process directly) — confirmed the fix, then removed `playwright` again
+  since it isn't part of the project's stack, it was only a one-off
+  diagnostic tool.
+- Root cause: `<textarea>` has an implicit `cols="20"` even when the
+  attribute is never written in JSX, and some WebKit versions use that
+  20-character estimate for *where the placeholder wraps*, independently of
+  the element's actual CSS width — the box itself was already correctly
+  100% width (confirmed by `getBoundingClientRect`), only the wrap measure
+  was wrong. The old Spanish placeholder's wraps ("Hola, soy tu prove" /
+  "edor, cambiamos de" / "cuenta bancaria...") are each ~19 characters,
+  matching `cols=20` almost exactly. Fixed by explicitly setting
+  `cols={1}` on the textarea so the CSS width is the only sizing signal
+  browsers have, for both the box and the wrap measure, in every engine —
+  not just a Chrome-only fix.
+- Lesson for next time: a Chrome-only (or Chrome-DevTools-Protocol-only)
+  check is not sufficient to close out a cross-browser layout complaint,
+  even when it looks conclusive. Don't dismiss a user's real-browser bug
+  report on the strength of one engine's rendering.
+
 **Tomorrow's first move:** Feature 3 — `POST /api/check` (validated,
 redacted-text-only) wired up to the button, which is still inert.
-
-**Tomorrow's first move:** build `lib/redact.ts` (Feature 2 — client-side
-zero-data redaction) with its Vitest suite.

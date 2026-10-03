@@ -122,6 +122,27 @@ describe("redact", () => {
     expect(found).toEqual([{ type: "SECRET", count: 1 }]);
   });
 
+  it("hides the value after the English keywords 'code' and 'password'", () => {
+    const { clean, found } = redact(
+      "Your code is 6632 and your password is Sunflower7.",
+    );
+    expect(clean).not.toContain("6632");
+    expect(clean).not.toContain("Sunflower7");
+    expect(found).toEqual([{ type: "SECRET", count: 2 }]);
+  });
+
+  it("redacts a CURP and a phone number from a message written in English", () => {
+    const { clean, found } = redact(
+      "This is your bank, your CURP GORA800101HDFRRN09 was used, call us at 5512345678.",
+    );
+    expect(clean).toContain("[CURP HIDDEN]");
+    expect(clean).toContain("[PHONE HIDDEN]");
+    expect(found).toEqual([
+      { type: "CURP", count: 1 },
+      { type: "PHONE", count: 1 },
+    ]);
+  });
+
   it("does NOT redact an order number that looks like a short digit string", () => {
     const { clean, found } = redact("Tu Pedido 4521 está listo para recoger.");
     expect(clean).toBe("Tu Pedido 4521 está listo para recoger.");
