@@ -194,6 +194,80 @@
   `text` field, malformed JSON body, and a valid request) to confirm the
   server-side validation independently of the UI.
 
-**Tomorrow's first move:** Feature 4 — `data/patterns.json` (8 simulated
-Mexican scam scripts) and `lib/patterns.ts` to score the redacted text
-against them.
+## 2026-10-03 — Root cause: why CSS edits weren't showing in real Safari
+
+- Confirmed, not assumed: `curl`'d the dev server's CSS `<link>` URL across
+  this entire session. It was byte-identical —
+  `/_next/static/chunks/[root-of-the-server]__0cbk-n2._.css` — from the very
+  first check after Feature 1 through the end of Feature 3, despite four
+  rounds of style edits in between. In Turbopack's **dev** mode, that
+  filename is stable by design (not content-hashed); new CSS is meant to
+  reach an already-open tab by a live WebSocket push (Fast Refresh/HMR), not
+  by the browser fetching a new URL.
+- This session restarted the dev server process itself many times (`pkill
+  -f "next dev"` + relaunch, to get a clean process for each round of CDP
+  verification). Each restart is a brand-new HMR session. A tab that was
+  open against an earlier instance, or that loaded the page and got a
+  cached response for that same stable CSS URL at any point, has no
+  content-hash change to force a fresh fetch — unlike a production build,
+  where every changed file gets a new filename and any cache is
+  automatically bypassed.
+- This is also *why my own checks never caught it*: `curl` never caches
+  anything, and both the Chrome DevTools Protocol session and the
+  Playwright WebKit session started from a brand-new, empty browser profile
+  each time — neither one had a stale cache to hit in the first place. Only
+  a real, continuously-used browser tab can exhibit this.
+- Verified by diffing against a production build: ran `npm run build` then
+  `npm run start` and confirmed the CSS filename becomes content-hashed
+  (`_next/static/chunks/2vvuxdan9oafq.css`, different from the dev
+  filename and from itself on the next content change) and the file
+  contains every current rule, including the new `lg:text-[56px]` etc.
+  classes from today's redesign.
+- Fix going forward: stop restarting the dev server repeatedly for routine
+  checks — let one instance run continuously so HMR can do its job. For
+  this round, verified against `npm run build && npm run start` instead of
+  `next dev`, both because it sidesteps the stable-URL problem entirely and
+  because it's a closer match to what actually ships to Vercel. Left that
+  production server running (rather than switching back to `next dev`) so
+  what the user checks in their own Safari is exactly what was verified
+  here, with zero cache ambiguity.
+
+## 2026-10-03 — Redesign: full-width product layout
+
+- Replaced the single ~512px-wide centered column with a real marketing
+  layout: `lg:grid-cols-[1fr_440px]` inside a `max-w-7xl` container (active
+  at the `lg` breakpoint, 1024px+, so 1440px gets the two-column hero and
+  390px stays single-column via a plain `flex flex-col`). Left side: title,
+  tagline, a new one-paragraph explanation, a numbered 3-step "how it
+  works" list, and a "Nothing you paste is stored" badge — none of that
+  copy existed before today. Right side: the existing form, now presented
+  as a bordered, shadowed card (`rounded-3xl border shadow-md`) rather than
+  being the whole page.
+- The result area (`#result`) moved out of the form card to sit full-width
+  below the two-column grid — right now it still only shows the Feature 3
+  placeholder/error text, but Feature 7's actual result card needs the full
+  page width, not the 440px form column.
+- Used literal arbitrary-value classes (`text-[56px]`, `text-[24px]`,
+  `text-[19px]`, `text-[20px]`, `h-[64px]`) for every size the user gave an
+  exact number for, instead of Tailwind's rem-based scale steps — this
+  repo's `html { font-size: 106.25% }` (set in Feature 1, to guarantee the
+  packet's 17px body-text minimum) would have thrown off any rem-based
+  class by that same 6.25%, e.g. `text-6xl` would render 63.75px rendered,
+  not 60. Arbitrary `px` values sidestep that entirely and make the numbers
+  exact and easy to verify.
+- Measured every requested number directly with
+  `getComputedStyle(...).fontSize` and `getBoundingClientRect().height`
+  over the Chrome DevTools Protocol at both 1440×900 and 390×844, against
+  the production build described above:
+  - 1440px: h1 `56px`, tagline `24px`, textarea `19px`, button `20px`
+    text / `64px` tall — all exact matches. `display: grid` confirmed
+    active; no horizontal overflow (`document.body.scrollWidth === 1440`).
+  - 390px: h1 `38.25px`, tagline `21.25px`, textarea `19.125px`, button
+    `21.25px` text / `72.25px` tall (mobile sizes from the Feature 1 fix,
+    unchanged) — layout confirmed single-column (`display: flex`), no
+    horizontal overflow (`scrollWidth === 390`).
+
+**Tomorrow's first move:** hold for the user to confirm the redesign looks
+right in their own Safari, then Feature 4 — `data/patterns.json` (8
+simulated Mexican scam scripts) and `lib/patterns.ts` to score the redacted
+text against them.
