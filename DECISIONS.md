@@ -579,6 +579,44 @@ fallback if Gemini fails.
   whether billing needs to be enabled on the Google Cloud project behind
   this key before real users start relying on the live site.
 
+## 2026-10-03 — Quota protection + Flash-Lite fallback
+
+- **Standing rule from here on: no live Gemini `generateContent` calls for
+  my own testing or verification, ever, unless the user explicitly asks
+  for one.** The user's quota is theirs — for their demo, their persona
+  test, their professor — not a resource for me to spend verifying my own
+  work. Everything in this entry was built and verified with mocked
+  `fetch` only; the clean-rebuild-and-restart cycle still ran (so the
+  server itself is confirmed healthy), but I deliberately did not call
+  `/api/check` afterward, since that call always reaches Gemini live and
+  would have spent quota just to watch the button work — something
+  already proven in the Feature 6 entry above.
+- `lib/gemini.ts` now distinguishes a 429 from every other failure via a
+  dedicated `QuotaExceededError`, thrown immediately rather than
+  retried — retrying a quota-exhausted model against itself can't
+  possibly succeed, so that would just waste the one retry the packet
+  allots for malformed JSON. Only a 429 triggers trying a second model;
+  a malformed response, a network error, a timeout, or any other
+  non-2xx status still only ever retries the *same* model once, then
+  falls through to the pattern-library fallback exactly as before.
+- Fallback model: `gemini-flash-lite-latest` — Google's own always-current
+  alias for the Flash-Lite tier, picked for the same reason
+  `gemini-flash-latest` was picked for the primary model in the Feature 6
+  entry above (evergreen, can't go stale the way a dated version can).
+  Confirmed it exists and supports `generateContent` from the model list
+  already fetched live earlier in this session — no new live call was
+  needed or made to re-confirm it, in keeping with the no-live-calls rule
+  above (a `models.list` call is read-only and unmetered, so it would
+  have been allowed, but there was no need to spend even that).
+- 9 new Vitest cases in `lib/gemini.test.ts` (69 total across the suite),
+  all against mocked `fetch`: the fallback firing and succeeding on a
+  429, both models exhausted returning `null`, the fallback model getting
+  its own malformed-response retry, and — importantly — two tests proving
+  the fallback is correctly scoped to 429 only: a plain 500 and a
+  twice-malformed response on the primary model each make exactly 2 calls
+  total (the primary model's own retry allowance), never touching the
+  Flash-Lite model at all.
+
 **Tomorrow's first move:** Feature 7 — build the real result card (verdict
 header, confidence bar, numbered steps, collapsible red flags, "Get human
 help" escalation card) to replace today's interim rendering.

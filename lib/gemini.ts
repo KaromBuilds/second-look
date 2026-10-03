@@ -4,8 +4,18 @@ const VERDICT_LABELS: VerdictLabel[] = ["likely_scam", "suspicious", "looks_ok"]
 
 // Bounds each attempt so a slow or hanging Gemini response can't stall
 // the whole /api/check request — the packet's "under 30 seconds" budget
-// covers the full check, and this still leaves room for one retry.
+// covers the full check, and this still leaves room for retries.
 const REQUEST_TIMEOUT_MS = 10_000;
+
+// Google's own always-current alias for the Flash-Lite tier — same
+// reasoning as GEMINI_MODEL being set to "gemini-flash-latest": an alias
+// Google maintains to always point at a live, non-retired model, rather
+// than a specific dated version this code would have to keep updating by
+// hand. Confirmed present and generateContent-capable via a live
+// `models.list` call (a read-only, unmetered endpoint — it doesn't touch
+// the generateContent quota this fallback exists to protect) before
+// picking it; not hardcoded blind.
+const QUOTA_FALLBACK_MODEL = "gemini-flash-lite-latest";
 
 const RESPONSE_SCHEMA = {
   type: "OBJECT",
@@ -90,10 +100,14 @@ function isValidVerdictShape(value: unknown): value is Omit<Verdict, "source"> {
   );
 }
 
-async function callGeminiOnce(input: AnalyzeInput): Promise<unknown> {
+// Thrown specifically for a 429 so the caller can tell "this model's
+// quota is exhausted, switch models" apart from any other failure (where
+// retrying the *same* model again is the right move instead).
+class QuotaExceededError extends Error {}
+
+async function callGemini(model: string, input: AnalyzeInput): Promise<unknown> {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL;
-  if (!apiKey || !model) {
+  if (!apiKey) {
     throw new Error("Gemini is not configured");
   }
 
@@ -114,6 +128,9 @@ async function callGeminiOnce(input: AnalyzeInput): Promise<unknown> {
     },
   );
 
+  if (response.status === 429) {
+    throw new QuotaExceededError(`${model} quota exceeded`);
+  }
   if (!response.ok) {
     throw new Error(`Gemini API responded with ${response.status}`);
   }
@@ -127,33 +144,65 @@ async function callGeminiOnce(input: AnalyzeInput): Promise<unknown> {
   return JSON.parse(raw);
 }
 
-// Calls Gemini and validates the JSON shape, retrying once on a malformed
-// response (per the packet's "validate the JSON and retry once"). Never
-// throws — any failure after the retry comes back as `null` so the
-// caller can fall back to the pattern-library-only verdict instead of
-// failing the whole request.
-export async function analyzeWithGemini(
+// Calls one model, validating the JSON shape and retrying once on a
+// malformed response (per the packet's "validate the JSON and retry once
+// if malformed"). A 429 is not retried here — quota exhaustion won't
+// resolve itself within the same request, so it's reported back
+// immediately via QuotaExceededError instead of wasting the retry.
+async function tryModel(
+  model: string,
   input: AnalyzeInput,
 ): Promise<Verdict | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
+    let parsed: unknown;
     try {
-      const parsed = await callGeminiOnce(input);
-      if (isValidVerdictShape(parsed)) {
-        return {
-          ...parsed,
-          steps: parsed.steps as [string, string, string],
-          escalate: shouldEscalate({
-            confidence: parsed.confidence,
-            dangerousLink: input.dangerousLink,
-            modelEscalate: parsed.escalate,
-          }),
-          source: "gemini",
-        };
-      }
-    } catch {
-      // fall through to retry, or to returning null after the loop
+      parsed = await callGemini(model, input);
+    } catch (err) {
+      // Quota exhaustion won't resolve itself within this request — let
+      // it propagate immediately so the caller can switch models instead
+      // of burning the retry on a repeat of the same failure. Any other
+      // error (network blip, timeout, unparseable text) is exactly what
+      // the retry loop below is for.
+      if (err instanceof QuotaExceededError) throw err;
+      continue;
     }
+    if (isValidVerdictShape(parsed)) {
+      return {
+        ...parsed,
+        steps: parsed.steps as [string, string, string],
+        escalate: shouldEscalate({
+          confidence: parsed.confidence,
+          dangerousLink: input.dangerousLink,
+          modelEscalate: parsed.escalate,
+        }),
+        source: "gemini",
+      };
+    }
+    // malformed shape — loop again for the one allowed retry
+  }
+  return null;
+}
+
+// Tries the configured model, and if (and only if) it reports quota
+// exhaustion, falls back once to a lighter Flash-Lite model with its own
+// separate quota, before giving up. Never throws — any failure all the
+// way through comes back as `null` so the caller can fall back to the
+// pattern-library-only verdict instead of failing the whole request.
+export async function analyzeWithGemini(
+  input: AnalyzeInput,
+): Promise<Verdict | null> {
+  const primaryModel = process.env.GEMINI_MODEL;
+  if (!primaryModel) return null;
+
+  try {
+    return await tryModel(primaryModel, input);
+  } catch (err) {
+    if (!(err instanceof QuotaExceededError)) return null;
   }
 
-  return null;
+  try {
+    return await tryModel(QUOTA_FALLBACK_MODEL, input);
+  } catch {
+    return null;
+  }
 }

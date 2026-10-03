@@ -207,6 +207,92 @@ describe("analyzeWithGemini", () => {
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
+  it("falls back to the Flash-Lite model on a 429 from the main model, and succeeds", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    vi.stubEnv("GEMINI_MODEL", "gemini-flash-latest");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 429 })
+      .mockResolvedValueOnce(geminiResponse(JSON.stringify(VALID_VERDICT)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await analyzeWithGemini(INPUT);
+
+    // one call for the exhausted primary model (no point retrying a 429
+    // against the same model), one for the lite fallback — not more.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0][0])).toContain("gemini-flash-latest");
+    expect(String(fetchMock.mock.calls[1][0])).toContain("gemini-flash-lite-latest");
+    expect(result?.verdict).toBe("likely_scam");
+    expect(result?.source).toBe("gemini");
+  });
+
+  it("returns null when both the main model and the Flash-Lite fallback are rate-limited", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    vi.stubEnv("GEMINI_MODEL", "gemini-flash-latest");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 429 }),
+    );
+
+    const result = await analyzeWithGemini(INPUT);
+
+    expect(result).toBeNull();
+  });
+
+  it("gives the Flash-Lite fallback its own malformed-response retry", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    vi.stubEnv("GEMINI_MODEL", "gemini-flash-latest");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 429 }) // primary exhausted
+      .mockResolvedValueOnce(geminiResponse("not valid json")) // lite attempt 1
+      .mockResolvedValueOnce(geminiResponse(JSON.stringify(VALID_VERDICT))); // lite attempt 2
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await analyzeWithGemini(INPUT);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result?.verdict).toBe("likely_scam");
+  });
+
+  it("does NOT try the Flash-Lite fallback for a non-quota failure on the main model", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    vi.stubEnv("GEMINI_MODEL", "gemini-flash-latest");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({ ok: false, status: 500 });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await analyzeWithGemini(INPUT);
+
+    // 2 attempts against the primary model only (its own malformed-retry
+    // allowance) — a plain server error isn't what the Flash-Lite
+    // fallback exists for, so it should never be called.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    fetchMock.mock.calls.forEach((call) => {
+      expect(String(call[0])).toContain("gemini-flash-latest");
+    });
+    expect(result).toBeNull();
+  });
+
+  it("does NOT try the Flash-Lite fallback when the main model just returns malformed JSON twice", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    vi.stubEnv("GEMINI_MODEL", "gemini-flash-latest");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(geminiResponse("not valid json"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await analyzeWithGemini(INPUT);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    fetchMock.mock.calls.forEach((call) => {
+      expect(String(call[0])).toContain("gemini-flash-latest");
+    });
+    expect(result).toBeNull();
+  });
+
   it("never sends the API key anywhere but the request URL's query string", async () => {
     vi.stubEnv("GEMINI_API_KEY", "super-secret-key");
     vi.stubEnv("GEMINI_MODEL", "gemini-flash-latest");
