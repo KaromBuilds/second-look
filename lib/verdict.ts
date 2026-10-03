@@ -12,6 +12,17 @@ export interface Verdict {
   source: "gemini" | "basic";
 }
 
+// The full /api/check response: a Verdict plus the link-check fields
+// app/api/check/route.ts attaches alongside it. Shared between the route
+// (which builds it) and the client (which renders it) so they can't drift.
+export interface CheckResult extends Verdict {
+  urls: string[];
+  dangerous_link: boolean;
+  flagged_domains: string[];
+  link_check_unavailable: boolean;
+  pattern_library: string;
+}
+
 const ESCALATE_CONFIDENCE_THRESHOLD = 60;
 
 // The packet's escalate rule is enforced here, independent of whatever a

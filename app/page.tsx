@@ -1,31 +1,11 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import ResultCard from "@/components/ResultCard";
 import { friendlyCheckError } from "@/lib/checkLimits";
 import { redact } from "@/lib/redact";
 import { extractUrls } from "@/lib/urls";
-
-interface CheckResponse {
-  verdict: "likely_scam" | "suspicious" | "looks_ok";
-  scam_type: string;
-  confidence: number;
-  red_flags: string[];
-  steps: [string, string, string];
-  escalate: boolean;
-  explanation: string;
-  source: "gemini" | "basic";
-  urls: string[];
-  dangerous_link: boolean;
-  flagged_domains: string[];
-  link_check_unavailable: boolean;
-  pattern_library: string;
-}
-
-const VERDICT_LABEL: Record<CheckResponse["verdict"], string> = {
-  likely_scam: "Likely scam",
-  suspicious: "Suspicious",
-  looks_ok: "Looks OK",
-};
+import type { CheckResult } from "@/lib/verdict";
 
 type Status = "idle" | "loading" | "error" | "success";
 
@@ -108,7 +88,7 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [result, setResult] = useState<CheckResponse | null>(null);
+  const [result, setResult] = useState<CheckResult | null>(null);
   const { clean, found } = useMemo(() => redact(message), [message]);
   const totalHidden = found.reduce((sum, item) => sum + item.count, 0);
   const hasText = message.trim().length > 0;
@@ -267,70 +247,15 @@ export default function Home() {
           )}
 
           {status === "success" && result && (
-            <div className="flex flex-col gap-3 rounded-3xl border border-zinc-200 bg-white p-6 shadow-md lg:mx-auto lg:max-w-3xl lg:p-8">
-              <p className="text-xs font-medium tracking-wide text-zinc-400 uppercase">
-                Interim result — the styled result card is coming in a
-                later feature
-              </p>
-
-              <p className="text-2xl font-bold text-zinc-900">
-                {VERDICT_LABEL[result.verdict]}: {result.scam_type}
-              </p>
-
-              <p className="text-base text-zinc-600">
-                Confidence: {result.confidence}%
-              </p>
-
-              <p className="text-lg leading-relaxed text-zinc-700">
-                {result.explanation}
-              </p>
-
-              {result.dangerous_link && (
-                <p className="rounded-2xl border border-warning/30 bg-warning-light px-4 py-3 text-base font-medium text-warning">
-                  Dangerous link found: {result.flagged_domains.join(", ")}
-                </p>
-              )}
-              {result.link_check_unavailable && (
-                <p className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-base font-medium text-zinc-600">
-                  Link check unavailable right now
-                </p>
-              )}
-              {result.escalate && (
-                <p className="rounded-2xl border border-warning/30 bg-warning-light px-4 py-3 text-base font-medium text-warning">
-                  Get human help — this one needs more than a quick check
-                </p>
-              )}
-
-              <ol className="flex flex-col gap-2">
-                {result.steps.map((step, index) => (
-                  <li key={step} className="flex items-start gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-light text-sm font-semibold text-brand-dark">
-                      {index + 1}
-                    </span>
-                    <span className="text-base leading-relaxed text-zinc-700">
-                      {step}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-
-              {result.red_flags.length > 0 && (
-                <details className="text-base text-zinc-600">
-                  <summary className="cursor-pointer font-medium text-zinc-700">
-                    Why?
-                  </summary>
-                  <ul className="mt-2 flex flex-col gap-1 pl-5 list-disc">
-                    {result.red_flags.map((flag) => (
-                      <li key={flag}>{flag}</li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-
-              <p className="text-sm text-zinc-400">
-                Pattern library: {result.pattern_library}
-                {result.source === "basic" && " · Basic check (AI unavailable)"}
-              </p>
+            <div className="flex flex-col gap-6">
+              <ResultCard result={result} hadPersonalData={totalHidden > 0} />
+              <button
+                type="button"
+                onClick={() => handleMessageChange("")}
+                className="self-center rounded-full border border-zinc-300 bg-white px-6 py-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                Check another message
+              </button>
             </div>
           )}
         </div>

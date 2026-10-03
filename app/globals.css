@@ -13,6 +13,8 @@
   --color-brand-light: #e6f0ee;
   --color-warning: #c08a2e;
   --color-warning-light: #fbf3e2;
+  --color-caution: #b7960a;
+  --color-caution-light: #faf3d9;
   --color-danger: #b3471f;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

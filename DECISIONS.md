@@ -620,3 +620,61 @@ fallback if Gemini fails.
 **Tomorrow's first move:** Feature 7 — build the real result card (verdict
 header, confidence bar, numbered steps, collapsible red flags, "Get human
 help" escalation card) to replace today's interim rendering.
+
+## 2026-10-03 — Feature 7: Result card and human escalation
+
+- `components/ResultCard.tsx` is the real styled card: a colored header
+  band by verdict (amber `likely_scam`, a new muted yellow `--color-caution`
+  for `suspicious`, brand green for `looks_ok`), a lighter tint band below
+  it with the confidence number and a filled progress bar, the 3 numbered
+  steps, the Feature 5 link warnings carried over as-is, a collapsible
+  "Why?" for red flags (hidden entirely when there are none — a
+  `basic`-sourced fallback with no pattern match has none), and a footer
+  with the `pattern_library`/`source` labels the packet asks to show on
+  screen.
+- Added `--color-caution`/`--color-caution-light` to `globals.css` —
+  distinct from the existing `--color-warning` amber, so `likely_scam` and
+  `suspicious` read as genuinely different severities rather than two
+  shades of the same color.
+- `GetHumanHelp` (same file) renders when `escalate` is true: the bank
+  number-on-the-card advice, a CONDUSEF link, Policía Cibernética (SSC
+  CDMX) with `tel:` links for both the direct line and `088`, and Buró de
+  Crédito — but only when `hadPersonalData` is true. That flag is passed
+  in from `app/page.tsx` as `totalHidden > 0`, i.e. Feature 2's
+  `redact()` result for the message currently in the textarea — the
+  already-redacted text the *server* sees can't prove on its own whether
+  real personal data was present, but the browser already knows from the
+  live preview, so the card asks for that instead of guessing.
+- Added `CheckResult` (`Verdict` + the route's link-check fields) to
+  `lib/verdict.ts` so the type the API route assembles and the type the
+  card renders are the same declaration, not two hand-maintained shapes
+  that could drift.
+- "Check another message" reuses the existing `handleMessageChange("")`
+  — the same function the textarea's `onChange` already calls on every
+  edit — rather than a second, parallel reset path. That function already
+  clears `message`, `status`, `errorMessage`, and `result` together, so
+  there's only one place that defines "what a clean slate looks like."
+- **Verified without spending any Gemini quota**, per today's standing
+  rule: drove the real page with a real click over the Chrome DevTools
+  Protocol, but intercepted the `/api/check` network request itself
+  (`Fetch.enable` + `Fetch.fulfillRequest`) and answered it with a
+  fixture response instead of letting it reach the server — the real
+  React/Tailwind rendering pipeline runs exactly as it would for a real
+  response, with zero calls to Gemini. Confirmed all three verdict colors
+  render distinctly, the escalation card and its conditional Buró de
+  Crédito item both appear/disappear correctly, and the full flow at
+  1440px and 390px (including scrolling down to the "Get human help"
+  card, which needed a taller viewport than the fold to see). Separately
+  confirmed the reset: before clicking "Check another message" the
+  textarea held text and the result card was visible; after, the
+  textarea's value is `""`, `#result`'s `innerText` is empty, and no verdict
+  or confidence text remains anywhere in the page — the exact "leaves no
+  text on the page" wording from the packet's accept criterion, checked
+  programmatically rather than by eye.
+- The pending placeholder-wrap and preview-URL-overflow issues (logged
+  earlier) are both still visible in this feature's screenshots, as
+  expected — untouched, since they're explicitly deferred to the final
+  polish pass.
+
+**Tomorrow's first move:** Feature 8 — push to GitHub, import into Vercel,
+set the three env vars, deploy.
