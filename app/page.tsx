@@ -1,7 +1,17 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import { friendlyCheckError } from "@/lib/checkLimits";
 import { redact } from "@/lib/redact";
+import { extractUrls } from "@/lib/urls";
+
+interface CheckResponse {
+  placeholder: true;
+  textLength: number;
+  urls: string[];
+}
+
+type Status = "idle" | "loading" | "error" | "success";
 
 function ShieldSearchIcon({ className }: { className?: string }) {
   return (
@@ -62,9 +72,55 @@ function renderPreview(clean: string): ReactNode[] {
 
 export default function Home() {
   const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<CheckResponse | null>(null);
   const { clean, found } = useMemo(() => redact(message), [message]);
   const totalHidden = found.reduce((sum, item) => sum + item.count, 0);
   const hasText = message.trim().length > 0;
+
+  function handleMessageChange(value: string) {
+    setMessage(value);
+    setStatus("idle");
+    setErrorMessage(null);
+    setResult(null);
+  }
+
+  async function handleCheck() {
+    const validationError = friendlyCheckError(clean, extractUrls(clean).length);
+    if (validationError) {
+      setStatus("error");
+      setErrorMessage(validationError);
+      setResult(null);
+      return;
+    }
+
+    setStatus("loading");
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch("/api/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: clean }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setStatus("error");
+        setErrorMessage(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+
+      setResult(data);
+      setStatus("success");
+    } catch {
+      setStatus("error");
+      setErrorMessage(
+        "Something went wrong. Please check your connection and try again.",
+      );
+    }
+  }
 
   return (
     <div className="min-h-full bg-white">
@@ -93,7 +149,7 @@ export default function Home() {
             rows={8}
             cols={1}
             value={message}
-            onChange={(event) => setMessage(event.target.value)}
+            onChange={(event) => handleMessageChange(event.target.value)}
             placeholder="Hi, this is your supplier, we changed bank accounts..."
             className="w-full resize-none rounded-2xl border border-zinc-200 bg-white p-4 text-lg leading-relaxed text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
           />
@@ -121,12 +177,30 @@ export default function Home() {
 
         <button
           type="button"
-          className="w-full rounded-full bg-brand px-6 py-5 text-xl font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark active:bg-brand-dark"
+          onClick={handleCheck}
+          disabled={status === "loading"}
+          className="w-full rounded-full bg-brand px-6 py-5 text-xl font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark active:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-70"
         >
-          Take a second look
+          {status === "loading" ? "Checking…" : "Take a second look"}
         </button>
 
-        <div id="result" aria-live="polite" />
+        <div id="result" aria-live="polite" className="flex flex-col gap-2">
+          {status === "error" && errorMessage && (
+            <p className="rounded-2xl border border-warning/30 bg-warning-light px-4 py-3 text-base font-medium text-warning">
+              {errorMessage}
+            </p>
+          )}
+
+          {status === "success" && result && (
+            <p className="rounded-2xl border border-brand/30 bg-brand-light px-4 py-3 text-base font-medium text-brand-dark">
+              Check complete — the full result card is coming in a later
+              feature. ({result.urls.length === 0
+                ? "no links found"
+                : `${result.urls.length} link${result.urls.length === 1 ? "" : "s"} found`}
+              )
+            </p>
+          )}
+        </div>
       </main>
     </div>
   );

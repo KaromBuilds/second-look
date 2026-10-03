@@ -1,3 +1,5 @@
+import { URL_RE } from "./urls";
+
 export type RedactionType =
   | "CURP"
   | "RFC"
@@ -28,7 +30,6 @@ const REPORT_ORDER: RedactionType[] = [
   "SECRET",
 ];
 
-const URL_RE = /\bhttps?:\/\/\S+/gi;
 // Private-use Unicode delimiters wrapping an index: these code points can't
 // appear in real pasted text, so restoring URLs afterward can't collide
 // with a message that happens to literally contain a plain placeholder

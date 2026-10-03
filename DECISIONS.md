@@ -156,5 +156,44 @@
   even when it looks conclusive. Don't dismiss a user's real-browser bug
   report on the strength of one engine's rendering.
 
-**Tomorrow's first move:** Feature 3 — `POST /api/check` (validated,
-redacted-text-only) wired up to the button, which is still inert.
+## 2026-10-03 — Feature 3: API route with validation
+
+- `app/api/check/route.ts` validates `{ text: string }`: non-empty string,
+  10-2,000 characters, max 5 URLs — in that order, each with its own
+  friendly error message and a 400 status. Returns a placeholder JSON body
+  for now (`{ placeholder: true, textLength, urls }`, URLs reduced to
+  hostnames) — Features 4-6 replace this with the real pattern-library
+  match, Safe Browsing result, and Gemini verdict.
+- Pulled URL extraction out of `lib/redact.ts` into `lib/urls.ts`
+  (`extractUrls`), and the length/URL-count rules into
+  `lib/checkLimits.ts` (`friendlyCheckError`), so the client and the route
+  both import the exact same validation logic and error copy instead of
+  two hand-written copies that could silently drift apart.
+- The route never logs `request` or the extracted `text` — a comment at the
+  top of the file calls this out explicitly so a future edit doesn't
+  casually add a `console.log(text)` for debugging. The zero-data rule
+  applies on the server, not just in the browser.
+- `app/page.tsx`: the button now calls `handleCheck`, which re-runs the
+  same `friendlyCheckError` check client-side first (so an empty or
+  too-long message never reaches `fetch` at all), then POSTs
+  `{ text: clean }` — the redacted text, never the raw textarea value —
+  and renders a loading state (`disabled`, "Checking…"), a plain-language
+  error, or a temporary success line in `#result`. Editing the textarea
+  again resets all three (`status`/`errorMessage`/`result`) so a stale
+  error or result can't linger next to new text.
+- Verified over the Chrome DevTools Protocol, not just by reading the code:
+  intercepted `Network.requestWillBeSent` while driving the real page —
+  an empty textarea and a 5,000-character one both fire zero requests to
+  `/api/check` (plain-language error shown instead), and a message
+  containing a CLABE and a phone number fires exactly one request whose
+  `postData` contains only `"[CLABE HIDDEN]"` / `"[PHONE HIDDEN]"`, never
+  the raw digits — matching the packet's Feature 3 acceptance test
+  (§11 test 2) directly rather than just trusting it by inspection.
+- Also exercised the route directly with `curl` for every validation
+  branch (empty, too short, too long, 5,000 chars, too many links, missing
+  `text` field, malformed JSON body, and a valid request) to confirm the
+  server-side validation independently of the UI.
+
+**Tomorrow's first move:** Feature 4 — `data/patterns.json` (8 simulated
+Mexican scam scripts) and `lib/patterns.ts` to score the redacted text
+against them.
