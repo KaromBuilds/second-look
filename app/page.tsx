@@ -25,23 +25,23 @@ function ShieldSearchIcon({ className }: { className?: string }) {
 
 export default function Home() {
   return (
-    <div className="flex min-h-full flex-1 justify-center bg-white">
-      <main className="flex w-full max-w-lg flex-col gap-6 px-5 py-10 sm:px-8">
-        <header className="flex items-center gap-2">
-          <ShieldSearchIcon className="h-8 w-8 text-brand" />
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
+    <div className="min-h-full bg-white">
+      <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-5 py-10 sm:px-8">
+        <header className="flex items-center gap-3">
+          <ShieldSearchIcon className="h-10 w-10 shrink-0 text-brand" />
+          <h1 className="text-4xl font-bold tracking-tight text-zinc-900">
             Second Look
           </h1>
         </header>
 
-        <p className="text-lg leading-relaxed text-zinc-600">
+        <p className="text-xl leading-relaxed text-zinc-600">
           Before you pay, take a second look.
         </p>
 
         <div className="flex flex-col gap-2">
           <label
             htmlFor="message"
-            className="text-base font-medium text-zinc-700"
+            className="text-lg font-medium text-zinc-700"
           >
             Paste the message you received
           </label>
@@ -50,13 +50,13 @@ export default function Home() {
             name="message"
             rows={8}
             placeholder="Hola, soy tu proveedor, cambiamos de cuenta bancaria..."
-            className="w-full resize-none rounded-2xl border border-zinc-200 bg-white p-4 text-base leading-relaxed text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
+            className="w-full resize-none rounded-2xl border border-zinc-200 bg-white p-4 text-lg leading-relaxed text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
           />
         </div>
 
         <button
           type="button"
-          className="w-full rounded-full bg-brand px-6 py-4 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark active:bg-brand-dark"
+          className="w-full rounded-full bg-brand px-6 py-5 text-xl font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark active:bg-brand-dark"
         >
           Take a second look
         </button>
