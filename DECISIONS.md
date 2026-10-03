@@ -16,6 +16,12 @@ redesign. Explicitly deferred — do not fix until the final polish pass
 - The form card (right column on desktop, the bordered box with the
   textarea and button) is too narrow. Current width is a fixed
   `lg:grid-cols-[1fr_440px]` — needs a wider or more flexible value.
+- Long URLs overflow the "What we'll check" preview box to the right
+  instead of wrapping. Confirmed by the user in real Safari on 2026-10-03,
+  after the Safe Browsing feature (where the dangerous-link warning itself
+  was confirmed working correctly). Needs a `break-all`/`overflow-wrap`
+  rule on the preview box or on the URL segment specifically, since a URL
+  is one long unbreakable token with no natural wrap points.
 
 ## 2026-10-03 — Feature 1: Scaffold and static UI
 
