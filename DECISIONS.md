@@ -267,7 +267,76 @@
     unchanged) — layout confirmed single-column (`display: flex`), no
     horizontal overflow (`scrollWidth === 390`).
 
-**Tomorrow's first move:** hold for the user to confirm the redesign looks
-right in their own Safari, then Feature 4 — `data/patterns.json` (8
-simulated Mexican scam scripts) and `lib/patterns.ts` to score the redacted
-text against them.
+## 2026-10-03 — The actual root cause of the broken/unstyled page
+
+The previous entry's root-cause write-up was wrong in one specific way: it
+correctly identified that Turbopack dev-mode CSS isn't content-hashed, but
+the page the user then saw wasn't a dev-mode staleness issue at all — it
+was broken by a mistake in how I recovered from `rm -rf .next`:
+
+- `next start` spawns a process whose OS-visible name is `next-server
+  (v16.3.8)`, **not** a string containing "next start". Every
+  `pkill -f "next start"` I ran was matching nothing and silently
+  succeeding (zero processes killed, zero error). `ps aux` confirms this is
+  the real process title.
+- So when I did `rm -rf .next` while a `next start` was running, then
+  rebuilt and ran `npm run start` again, that second attempt crashed
+  immediately with `EADDRINUSE` (logged, but I only `curl`'d the root page
+  and saw `200`, so I never noticed the crash) — because the *first*
+  process was still alive and still holding port 3000.
+- That survivor process had been running continuously since before the
+  `rm -rf .next`. It kept answering requests from its in-memory route
+  cache (hence the HTML still loaded), but its HTML referenced a CSS
+  filename that physically no longer existed on disk — confirmed directly:
+  `curl` on the linked `/_next/static/chunks/*.css` returned `HTTP 500`.
+  Unstyled HTML plus the already-applied `cols="1"` fix explains exactly
+  what the user saw: a 1-character-wide textarea (the raw, unstyled
+  `cols="1"` HTML attribute with no CSS to override it) and giant shield
+  icons (an unstyled `<svg>` with no explicit `width`/`height` falls back
+  to the browser's native replaced-element default, ~300×150 CSS pixels).
+- Fixed by killing *by port* instead of by process name —
+  `lsof -ti:3000 | xargs kill -9` — which doesn't depend on guessing what
+  string appears in `ps`. Confirmed zero listeners on port 3000, then did
+  one clean `rm -rf .next && npm run build && npm run start`, watched the
+  start log directly (not just a root-page `curl`) to confirm it actually
+  bound the port instead of crashing, and explicitly `curl`'d the CSS
+  `<link>` target and got `200` with a non-zero byte count before touching
+  anything else.
+- Added a second, independent layer of defense so this exact failure mode
+  (CSS absent or failing to load) can never make an icon fill the screen
+  again: `ShieldSearchIcon` now takes a `size` prop and sets explicit
+  `width`/`height` attributes on the `<svg>` itself, not just a CSS class.
+  HTML width/height are a floor the browser uses before any stylesheet is
+  parsed; the Tailwind `h-*`/`w-*` classes in `className` still win once
+  CSS loads. Confirmed both `<svg>` tags in the served HTML carry literal
+  `width="40" height="40"` and `width="16" height="16"`.
+- Polish pass on top of the already-verified redesign: the check card now
+  has `transition-shadow duration-300 hover:shadow-lg` (static `shadow-md`
+  at rest), the textarea has `transition-colors duration-150` on its
+  focus-ring change, and the button has a real hover interaction —
+  `hover:-translate-y-0.5 hover:shadow-lg hover:bg-brand-dark`, eased with
+  `transition-all duration-200`, reverting on `active:`/`disabled:` so it
+  doesn't stay "lifted" mid-click or while loading.
+- Verified the hover state for real, not just by reading the class names:
+  drove a synthetic `Input.dispatchMouseEvent` to the button's center over
+  the DevTools Protocol and read back `getComputedStyle` afterward. First
+  attempt looked broken (`transform: none`) — turned out to be my own
+  check reading the wrong CSS property: Tailwind v4 compiles translate
+  utilities to the standalone `translate` property, not `transform` (confirmed
+  directly in the compiled CSS: `translate:var(--tw-translate-x)
+  var(--tw-translate-y))`. Reading the right property showed
+  `translate: 0px -2.125px` (exactly `-0.5 × 0.25rem × 17px` root), the
+  background color changed to `#2F5F55`, and the box-shadow's last two
+  layers matched `shadow-lg`'s values — all three hover effects
+  genuinely firing, confirmed, not assumed.
+- Re-ran the full clean-restart sequence (kill by port → `rm -rf .next` →
+  build → start → confirm the start log → confirm the CSS link resolves)
+  after this polish pass too, then took fresh screenshots at 1440×900 and
+  390×1500 over CDP and looked at both before writing anything here: no
+  unstyled elements, no oversized icons, no horizontal overflow, numbered
+  steps/badge/card all rendering as designed at both widths.
+
+**Tomorrow's first move:** hold for the user to confirm the page now
+renders correctly in their own Safari, then Feature 4 — `data/patterns.json`
+(8 simulated Mexican scam scripts) and `lib/patterns.ts` to score the
+redacted text against them.

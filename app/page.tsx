@@ -13,10 +13,22 @@ interface CheckResponse {
 
 type Status = "idle" | "loading" | "error" | "success";
 
-function ShieldSearchIcon({ className }: { className?: string }) {
+// Explicit width/height (not just a CSS class) so the icon can never fall
+// back to the browser's native ~300x150 replaced-element default if the
+// stylesheet fails to load — they're a floor, and CSS width/height classes
+// in `className` still win whenever the stylesheet is present.
+function ShieldSearchIcon({
+  className,
+  size,
+}: {
+  className?: string;
+  size: number;
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
+      width={size}
+      height={size}
       fill="none"
       className={className}
       aria-hidden="true"
@@ -135,7 +147,10 @@ export default function Home() {
           {/* Hero */}
           <div className="flex flex-col gap-6 lg:gap-8">
             <header className="flex items-center gap-3 lg:gap-4">
-              <ShieldSearchIcon className="h-10 w-10 shrink-0 text-brand lg:h-14 lg:w-14" />
+              <ShieldSearchIcon
+                size={40}
+                className="h-10 w-10 shrink-0 text-brand lg:h-14 lg:w-14"
+              />
               <h1 className="text-4xl font-bold tracking-tight text-zinc-900 lg:text-[56px]">
                 Second Look
               </h1>
@@ -166,13 +181,13 @@ export default function Home() {
             </ol>
 
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-brand/20 bg-brand-light px-4 py-2 text-base font-medium text-brand-dark">
-              <ShieldSearchIcon className="h-4 w-4 shrink-0" />
+              <ShieldSearchIcon size={16} className="h-4 w-4 shrink-0" />
               Nothing you paste is stored
             </div>
           </div>
 
           {/* Check card */}
-          <div className="flex flex-col gap-5 rounded-3xl border border-zinc-200 bg-white p-6 shadow-md lg:p-8">
+          <div className="flex flex-col gap-5 rounded-3xl border border-zinc-200 bg-white p-6 shadow-md transition-shadow duration-300 hover:shadow-lg lg:p-8">
             <div className="flex flex-col gap-2">
               <label
                 htmlFor="message"
@@ -188,7 +203,7 @@ export default function Home() {
                 value={message}
                 onChange={(event) => handleMessageChange(event.target.value)}
                 placeholder="Hi, this is your supplier, we changed bank accounts..."
-                className="w-full resize-none rounded-2xl border border-zinc-200 bg-white p-4 text-lg leading-relaxed text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 lg:text-[19px]"
+                className="w-full resize-none rounded-2xl border border-zinc-200 bg-white p-4 text-lg leading-relaxed text-zinc-900 shadow-sm transition-colors duration-150 placeholder:text-zinc-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 lg:text-[19px]"
               />
             </div>
 
@@ -216,7 +231,7 @@ export default function Home() {
               type="button"
               onClick={handleCheck}
               disabled={status === "loading"}
-              className="flex w-full items-center justify-center rounded-full bg-brand px-6 py-5 text-xl font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark active:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-70 lg:h-[64px] lg:py-0 lg:text-[20px]"
+              className="flex w-full items-center justify-center rounded-full bg-brand px-6 py-5 text-xl font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-dark hover:shadow-lg active:translate-y-0 active:bg-brand-dark disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-70 disabled:shadow-sm lg:h-[64px] lg:py-0 lg:text-[20px]"
             >
               {status === "loading" ? "Checking…" : "Take a second look"}
             </button>
