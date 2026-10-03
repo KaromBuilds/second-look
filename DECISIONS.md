@@ -415,3 +415,63 @@ redacted text against them.
 
 **Tomorrow's first move:** Feature 5 — add the Google Safe Browsing link
 check to `/api/check`.
+
+## 2026-10-03 — Feature 5: Google Safe Browsing link check
+
+- `lib/safeBrowsing.ts`'s `checkUrls(urls)` calls the Lookup API v4
+  (`threatMatches:find`) with all four threat types the packet lists
+  (MALWARE, SOCIAL_ENGINEERING, UNWANTED_SOFTWARE,
+  POTENTIALLY_HARMFUL_APPLICATION). It never throws: a missing API key, a
+  non-2xx response, or a network error all come back as
+  `{ available: false, dangerousUrls: [] }` rather than an exception, so
+  one third-party API hiccup can't take down `/api/check` — exactly the
+  packet's "If the API fails, continue" rule, implemented as a type the
+  caller can't accidentally treat as "nothing dangerous" (`available` and
+  "no matches" are different states).
+- Wired into `app/api/check/route.ts`: the response now carries
+  `dangerous_link` (true only when the lookup actually ran and found a
+  match), `flagged_domains` (hostnames only, via the same `toHostname`
+  helper already used for the general `urls` list — a flagged link's full
+  URL, which could carry tracking parameters or other incidental data,
+  never reaches the client), and `link_check_unavailable` (true only when
+  there were URLs to check and the lookup itself failed — not when there
+  were simply no links in the message).
+- Extended `lib/urls.ts` with `toHostname`, shared between the general URL
+  list and the flagged-domains list rather than duplicating the
+  try/catch-around-`new URL()` logic a second time.
+- Surfaced this minimally in the current placeholder UI (an amber
+  "Dangerous link found: …" box, or a neutral "Link check unavailable
+  right now" box, above the existing green placeholder line) — the
+  packet's Feature 5 text itself says to "show which link" and "say" the
+  unavailable message, which reads as this feature's own job, not
+  something to defer entirely to Feature 7's full result card.
+- 8 Vitest cases in `lib/safeBrowsing.test.ts`, with `fetch` mocked via
+  `vi.stubGlobal` — no real network calls in the automated suite. Covers:
+  zero URLs skips the call entirely, a missing key is reported as
+  unavailable (not silently "safe"), a match is correctly surfaced, no
+  match is correctly reported as not-dangerous, duplicate matches for the
+  same URL are deduped, a non-2xx response and a thrown network error both
+  come back as unavailable without throwing, and — directly relevant given
+  this feature touches a real secret — a test that the API key only ever
+  appears in the request URL's query string, never serialized into the
+  request body.
+- Verified the packet's actual acceptance test against the **real** Google
+  Safe Browsing API, using the real key from `.env.local`: both of
+  Google's official test URLs
+  (`http://malware.testing.google.test/testing/malware/` and
+  `http://testsafebrowsing.appspot.com/s/phishing.html`) came back
+  `dangerous_link: true`, and a normal URL
+  (`http://example.com/order/12345`) came back `false` — via `curl`
+  against the running server, and separately by driving the real page
+  end-to-end over the Chrome DevTools Protocol (typed the message,
+  clicked the button, read back the rendered warning text and a
+  screenshot) to confirm the full flow, not just the API response. The
+  API key itself was never printed in any command, log, or test output —
+  checked explicitly before starting this feature (`${#value}` character
+  counts only, never the values) and grepped the server log afterward to
+  confirm.
+
+**Tomorrow's first move:** Feature 6 — call Gemini with the redacted text,
+top pattern match, and Safe Browsing result; assemble the real structured
+verdict (replacing today's placeholder response) with a pattern-library
+fallback if Gemini fails.

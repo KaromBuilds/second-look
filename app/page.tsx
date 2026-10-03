@@ -9,6 +9,9 @@ interface CheckResponse {
   placeholder: true;
   textLength: number;
   urls: string[];
+  dangerous_link: boolean;
+  flagged_domains: string[];
+  link_check_unavailable: boolean;
 }
 
 type Status = "idle" | "loading" | "error" | "success";
@@ -251,13 +254,25 @@ export default function Home() {
           )}
 
           {status === "success" && result && (
-            <p className="rounded-2xl border border-brand/30 bg-brand-light px-4 py-3 text-base font-medium text-brand-dark lg:mx-auto lg:max-w-3xl lg:px-6 lg:py-4 lg:text-lg">
-              Check complete — the full result card is coming in a later
-              feature. ({result.urls.length === 0
-                ? "no links found"
-                : `${result.urls.length} link${result.urls.length === 1 ? "" : "s"} found`}
-              )
-            </p>
+            <>
+              {result.dangerous_link && (
+                <p className="rounded-2xl border border-warning/30 bg-warning-light px-4 py-3 text-base font-medium text-warning lg:mx-auto lg:max-w-3xl lg:px-6 lg:py-4 lg:text-lg">
+                  Dangerous link found: {result.flagged_domains.join(", ")}
+                </p>
+              )}
+              {result.link_check_unavailable && (
+                <p className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-base font-medium text-zinc-600 lg:mx-auto lg:max-w-3xl lg:px-6 lg:py-4 lg:text-lg">
+                  Link check unavailable right now
+                </p>
+              )}
+              <p className="rounded-2xl border border-brand/30 bg-brand-light px-4 py-3 text-base font-medium text-brand-dark lg:mx-auto lg:max-w-3xl lg:px-6 lg:py-4 lg:text-lg">
+                Check complete — the full result card is coming in a later
+                feature. ({result.urls.length === 0
+                  ? "no links found"
+                  : `${result.urls.length} link${result.urls.length === 1 ? "" : "s"} found`}
+                )
+              </p>
+            </>
           )}
         </div>
       </main>
