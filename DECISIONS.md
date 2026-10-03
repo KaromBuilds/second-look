@@ -481,3 +481,104 @@ check to `/api/check`.
 top pattern match, and Safe Browsing result; assemble the real structured
 verdict (replacing today's placeholder response) with a pattern-library
 fallback if Gemini fails.
+
+## 2026-10-03 — Feature 6: Gemini analysis with structured JSON and fallback
+
+- Model discovery, as the packet asks ("first list available models...
+  pick a current Flash model; never hardcode a deprecated one"): called
+  `GET v1beta/models` live with the real key (reading it only via a shell
+  variable sourced from `.env.local`, never typed or displayed by me) and
+  picked `gemini-flash-latest` — Google's own always-current alias for the
+  Flash tier — over pinning a specific dated model. Wrote it into
+  `GEMINI_MODEL` in `.env.local` with `sed`, not by reading+rewriting the
+  file, specifically to avoid the file's secret values ever passing through
+  anything that gets echoed back to me. This paid off immediately: midway
+  through this feature, `gemini-2.5-flash` (a model I'd have reached for
+  from training data alone) turned out to already be retired — Google's
+  API now 404s it with "no longer available to new users" — while the
+  `-latest` alias had already carried forward to `gemini-3.8-flash`
+  without any code change. That's the concrete failure mode "never
+  hardcode a deprecated one" is warning about, caught in the act.
+- `lib/verdict.ts` owns the shared `Verdict` type and the escalate rule
+  (`shouldEscalate`) as one function, not duplicated logic in two places:
+  `escalate` is true if confidence < 60, OR a dangerous link was found, OR
+  the model itself said so (which is how "the text says money was already
+  sent" reaches the final value — only Gemini can detect that from the
+  message's language, so it's instructed to fold it into its own
+  `escalate`/`confidence`, and `shouldEscalate` then ORs that in
+  deterministically rather than trusting the model never to forget).
+  `buildFallbackVerdict` is the "basic check" path: built only from the
+  Feature 4 pattern match and the Feature 5 link check, confidence
+  deliberately pinned below 60 (55 with a pattern match, 35 without) so it
+  always escalates via the same shared rule — and it never returns
+  `looks_ok`, since a keyword-only check can rule a message *in* as
+  matching a bad pattern but can't honestly rule one *out* as safe.
+- `lib/gemini.ts` requests JSON via `responseMimeType: "application/json"`
+  plus an explicit `responseSchema` (Gemini API's structured-output
+  feature) rather than relying on prompt wording alone, then still
+  validates the parsed shape itself and retries once on a mismatch — the
+  packet's "validate the JSON and retry once if malformed" literally, as
+  a second line of defense under the schema constraint rather than instead
+  of it. Every request carries `signal: AbortSignal.timeout(10_000)` — a
+  real gap this feature found by testing against the live API: a hanging
+  upstream response (not just an error response) could otherwise stall
+  the whole `/api/check` request indefinitely, which a generic try/catch
+  around `fetch` does not protect against on its own.
+- System prompt rules translate directly from the packet: simple English,
+  never ask for personal data (the prompt explicitly tells the model that
+  `[PHONE HIDDEN]`-style tags are evidence of what was asked for, not
+  something to re-request), never tell the user to click a link in the
+  message, and — whenever the message claims to be someone the user
+  already knows — at least one of the 3 steps must say to contact them
+  through a number or channel the user already has, not anything from the
+  message itself.
+- `app/api/check/route.ts` now runs the pattern match and the Safe
+  Browsing check together (`Promise.all`), calls Gemini with both results
+  as context, and returns `analyzeWithGemini(...) ?? buildFallbackVerdict(...)`
+  merged with the existing link-check fields and a `pattern_library:
+  "simulated data"` label — the placeholder response from Features 3-5 is
+  gone.
+- `app/page.tsx`'s interim result rendering (still explicitly labeled as
+  interim — Feature 7 owns the real styled card) was updated to the new
+  response shape: verdict + scam type, confidence, explanation, the link
+  warnings from Feature 5, an escalate notice, the 3 numbered steps, a
+  collapsible "Why?" for red flags, and the pattern-library/basic-check
+  labels the packet asks for on screen.
+- 23 new Vitest cases across `lib/verdict.test.ts` (10) and
+  `lib/gemini.test.ts` (13) — fetch mocked throughout, no live calls in
+  the automated suite. Covers the escalate rule's three independent
+  triggers, the fallback's refusal to ever say `looks_ok`, valid-response
+  parsing for both a scam verdict and a `looks_ok` verdict (parsed
+  identically — the code has no special-casing by verdict value), the
+  retry-once behavior for both unparseable JSON and JSON missing required
+  fields, that two bad responses in a row return `null` without throwing,
+  non-2xx responses, network errors, a simulated request timeout, and —
+  same pattern as Feature 5 — a check that the API key only ever appears
+  in the request URL, never in the serialized request body.
+- Verified the packet's literal acceptance test against the **real**
+  Gemini API: the supplier message came back `likely_scam`, `"Fake
+  supplier bank change"`, 95% confidence, `escalate: false` (correctly —
+  nothing in the message says money was already sent, there's no
+  dangerous link, and confidence is well above 60, so per the packet's
+  own rule this one doesn't need escalation), and all 3 steps present,
+  including "Call your supplier using the regular phone number you
+  already have saved" satisfying the known-contact rule — through the
+  real app, not a standalone script. Along the way, discovered the
+  project's Gemini key is on the **free tier with a 20-requests/day quota
+  per concrete model** (confirmed via the API's own 429 response,
+  `quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier`) — my own
+  testing exhausted it, after which every further call correctly fell
+  back to the basic/pattern-library path rather than erroring, which is
+  itself a real demonstration of the fallback working as designed under
+  an actual failure condition, not a mocked one. Confirmed the harmless-
+  message case's exact JSON shape (`looks_ok`, `escalate: false`) with a
+  mocked-but-realistic unit test instead of burning a second live call
+  chasing it through the same, already-proven request/parse/escalate
+  code path. **Flagging for the user:** 20 requests/day is very tight for
+  anything beyond this kind of development testing — worth checking
+  whether billing needs to be enabled on the Google Cloud project behind
+  this key before real users start relying on the live site.
+
+**Tomorrow's first move:** Feature 7 — build the real result card (verdict
+header, confidence bar, numbered steps, collapsible red flags, "Get human
+help" escalation card) to replace today's interim rendering.
