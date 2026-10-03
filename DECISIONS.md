@@ -369,3 +369,49 @@ explicit request, not fixed now.
 Mexican scam scripts, each with `id`, `name`, `keywords`, `red_flags`,
 `safe_steps`, `"simulated": true`) and `lib/patterns.ts` to score the
 redacted text against them.
+
+## 2026-10-03 — Feature 4: Simulated scam pattern library
+
+- `data/patterns.json` has the 8 scripts the packet lists (supplier
+  account change, fake SAT notice, fake plate fine, fake delivery fee,
+  fake bank security alert, family-emergency/new-number scam, fake
+  job-or-prize, fake invoice/CFDI), each with `id`, `name`, `keywords`,
+  `red_flags`, 3 `safe_steps`, and `"simulated": true`.
+- `name`/`red_flags`/`safe_steps` are English — these are the fields that
+  can end up shown to the user directly (as `scam_type` and in the
+  Feature 6 Gemini-unavailable fallback, which the packet says "build[s]
+  the result from the pattern library only"), so they're in scope for the
+  user's "everything in English" rule from earlier today. `keywords` is
+  the one field that's genuinely about matching, not display, so each
+  pattern lists both Spanish and English phrasings — directly carrying
+  forward the user's instruction that "keyword redaction and pattern
+  matching must work in both languages," applied here the same way it was
+  already applied to `lib/redact.ts`'s secret-keyword list.
+- `lib/patterns.ts`'s `matchPattern(text)` scores every pattern by how many
+  of its keywords appear in the text (substring match, not exact-word) and
+  returns the single highest-scoring one with its score and which keywords
+  matched, or `null` if nothing matched at all — deliberately not forcing a
+  match onto an unrelated message. Both the input text and every keyword
+  are lowercased and run through `.normalize("NFD")` with a `\p{Mn}`
+  (nonspacing mark) strip before comparing, so matching doesn't care
+  whether the owner typed accents or not.
+- Not wired into `/api/check` yet — the packet's own sequencing does that
+  in Feature 6 ("the top pattern match, and the Safe Browsing result" are
+  what get passed to Gemini), after Feature 5 adds the Safe Browsing call
+  to the route. Feature 4's own acceptance criterion is about
+  `matchPattern`'s behavior directly, not the route.
+- 12 Vitest cases in `lib/patterns.test.ts`, including the packet's literal
+  acceptance test (a "supplier changed account" message scores pattern 1
+  as the top match) run in both Spanish and English, an accent-sensitivity
+  pair (same message with and without accents, same result), a
+  no-keywords-matched case returning `null`, and a structural check that
+  all 8 patterns have unique ids and exactly 3 safe steps.
+- `lib/patterns.ts` imports the JSON via a relative path
+  (`../data/patterns.json`), not the `@/` alias used everywhere else in
+  this repo — Vitest's resolver doesn't pick up the `@/*` mapping from
+  `tsconfig.json` the way Next's own bundler does, and it's a one-line
+  relative import versus a new `vitest.config.ts` just to wire up an
+  alias for a single sibling-directory import.
+
+**Tomorrow's first move:** Feature 5 — add the Google Safe Browsing link
+check to `/api/check`.

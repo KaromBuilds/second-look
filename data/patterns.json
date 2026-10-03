@@ -1,0 +1,220 @@
+[
+  {
+    "id": "supplier-account-change",
+    "name": "Supplier bank account change",
+    "keywords": [
+      "cambiamos de banco",
+      "cambiamos de cuenta",
+      "cambio de cuenta",
+      "nueva cuenta bancaria",
+      "nuevo numero de cuenta",
+      "deposita a esta cuenta",
+      "deposite a esta cuenta",
+      "we changed banks",
+      "we changed our bank account",
+      "new bank account",
+      "deposit to this account",
+      "updated bank details",
+      "changed bank accounts"
+    ],
+    "red_flags": [
+      "Asks you to send payment to a new bank account",
+      "Creates urgency to pay before you can verify the change",
+      "Impersonates a supplier or business contact you already trust"
+    ],
+    "safe_steps": [
+      "Do not send any payment to the new account yet",
+      "Call your supplier using a number you already have on file — not one from this message",
+      "If you already paid, contact your bank immediately to try to stop or reverse the transfer"
+    ],
+    "simulated": true
+  },
+  {
+    "id": "fake-sat-notice",
+    "name": "Fake SAT fine or mailbox notice",
+    "keywords": [
+      "sat",
+      "buzon tributario",
+      "buzon fiscal",
+      "multa fiscal",
+      "adeudo fiscal",
+      "notificacion fiscal",
+      "tax authority",
+      "tax fine",
+      "fiscal notice",
+      "fiscal mailbox"
+    ],
+    "red_flags": [
+      "Claims to be from SAT (Mexico's tax authority) with a mailbox notice or fine",
+      "Pressures you to pay quickly through a link to avoid a penalty",
+      "SAT does not request payment through WhatsApp or SMS links"
+    ],
+    "safe_steps": [
+      "Do not click the link or pay anything from this message",
+      "Check your real SAT mailbox directly at sat.gob.mx, not through this link",
+      "If unsure, call SAT's official line or ask your accountant to verify"
+    ],
+    "simulated": true
+  },
+  {
+    "id": "fake-plate-fine",
+    "name": "Fake vehicle plate fine",
+    "keywords": [
+      "placas",
+      "multa de transito",
+      "infraccion",
+      "foto infraccion",
+      "licencia suspendida",
+      "traffic fine",
+      "plate fine",
+      "vehicle fine",
+      "photo infraction"
+    ],
+    "red_flags": [
+      "Claims your vehicle plates have an unpaid fine or infraction",
+      "Includes a link to \"pay now\" to avoid towing or further penalties",
+      "Real traffic fines are not usually sent with urgent payment links by SMS or WhatsApp"
+    ],
+    "safe_steps": [
+      "Do not pay through the link in this message",
+      "Check your fines directly on your state or city's official traffic authority website",
+      "If you're unsure, visit an official module in person or call the official traffic hotline"
+    ],
+    "simulated": true
+  },
+  {
+    "id": "fake-delivery-fee",
+    "name": "Fake delivery fee or wrong address",
+    "keywords": [
+      "paquete",
+      "direccion incorrecta",
+      "costo de envio",
+      "reprogramar entrega",
+      "paqueteria",
+      "package",
+      "wrong address",
+      "delivery fee",
+      "redelivery fee",
+      "shipping fee",
+      "reschedule delivery"
+    ],
+    "red_flags": [
+      "Claims a package can't be delivered because of a wrong address or unpaid fee",
+      "Asks for a small payment through a link to \"release\" or reschedule delivery",
+      "Creates urgency around a package you may not be expecting"
+    ],
+    "safe_steps": [
+      "Do not pay through the link in this message",
+      "Check your order status directly on the courier's official website or app, not through this link",
+      "If you weren't expecting a package, treat this as a scam and delete it"
+    ],
+    "simulated": true
+  },
+  {
+    "id": "bank-confirm-code",
+    "name": "Fake bank security alert",
+    "keywords": [
+      "actividad sospechosa",
+      "confirma tu codigo",
+      "confirma tu clave",
+      "tu cuenta sera bloqueada",
+      "verifica tu cuenta",
+      "suspicious activity",
+      "confirm your code",
+      "verify your account",
+      "account will be blocked",
+      "unusual activity"
+    ],
+    "red_flags": [
+      "Claims suspicious activity on your account and asks you to \"confirm\" a code",
+      "A real bank never asks you to share a one-time code or password by message",
+      "Threatens that your account will be blocked if you don't respond quickly"
+    ],
+    "safe_steps": [
+      "Never share a code, password, or PIN with anyone, even if they say they're your bank",
+      "Stop responding, then call your bank using the number on the back of your card",
+      "Report the message to your bank's fraud line"
+    ],
+    "simulated": true
+  },
+  {
+    "id": "family-emergency",
+    "name": "Family emergency / new number scam",
+    "keywords": [
+      "cambie de numero",
+      "es un familiar",
+      "necesito dinero urgente",
+      "estoy en un problema",
+      "no le digas a nadie",
+      "i changed my number",
+      "i'm in trouble",
+      "need money urgently",
+      "don't tell anyone",
+      "this is my new number"
+    ],
+    "red_flags": [
+      "A supposed family member or friend claims to be texting from a new number",
+      "Asks for money urgently, often for an emergency, bail, or medical bill",
+      "Asks you to keep it secret or not call anyone to verify"
+    ],
+    "safe_steps": [
+      "Do not send any money yet",
+      "Call your family member or friend directly at the number you already had for them",
+      "If you can't reach them, call another relative to verify before sending anything"
+    ],
+    "simulated": true
+  },
+  {
+    "id": "fake-job-or-prize",
+    "name": "Fake job offer or prize",
+    "keywords": [
+      "fuiste seleccionado",
+      "ganaste un premio",
+      "trabajo desde casa",
+      "pago por adelantado",
+      "deposito de garantia",
+      "you were selected",
+      "you won a prize",
+      "work from home",
+      "upfront payment",
+      "security deposit required"
+    ],
+    "red_flags": [
+      "Offers a job or prize that seems too good to be true",
+      "Asks you to pay a deposit, fee, or \"registration\" before you receive anything",
+      "A legitimate employer or prize never asks you to pay money first"
+    ],
+    "safe_steps": [
+      "Do not send any payment or deposit",
+      "Research the company or offer independently before responding",
+      "If it asks for money upfront, treat it as a scam"
+    ],
+    "simulated": true
+  },
+  {
+    "id": "fake-invoice-cfdi",
+    "name": "Fake invoice or CFDI download",
+    "keywords": [
+      "factura",
+      "cfdi",
+      "descarga tu factura",
+      "complemento de pago",
+      "comprobante fiscal",
+      "invoice attached",
+      "download your invoice",
+      "payment complement",
+      "tax receipt"
+    ],
+    "red_flags": [
+      "Asks you to download an attached \"invoice\" or CFDI file from an unexpected sender",
+      "The download link or file may contain malware",
+      "Real invoices from known suppliers usually arrive through expected, verified channels"
+    ],
+    "safe_steps": [
+      "Do not download or open the attachment",
+      "Confirm with the sender directly, using a phone number or email you already know, before opening anything",
+      "If you already downloaded it, run an antivirus scan and avoid opening the file"
+    ],
+    "simulated": true
+  }
+]
