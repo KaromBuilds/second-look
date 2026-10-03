@@ -1,5 +1,22 @@
 # Decisions
 
+## Known issues — pending, final polish pass only
+
+Confirmed by the user in real Safari on 2026-10-03, after the layout
+redesign. Explicitly deferred — do not fix until the final polish pass
+(packet §9/§11 territory), not during feature work:
+
+- Placeholder text still wraps early in real Safari ("Hi, this is your /
+  supplier, we...") even though `cols={1}` was set specifically to make
+  CSS width the only sizing signal and this was verified fixed in
+  Playwright's WebKit build. Real Safari.app evidently still doesn't
+  agree — needs a fresh look (possibly a different mechanism than the
+  `cols`/wrap-measure one already fixed, since that one measurably works
+  in WebKit 26.6).
+- The form card (right column on desktop, the bordered box with the
+  textarea and button) is too narrow. Current width is a fixed
+  `lg:grid-cols-[1fr_440px]` — needs a wider or more flexible value.
+
 ## 2026-10-03 — Feature 1: Scaffold and static UI
 
 - Bootstrapped with `create-next-app` (TypeScript, Tailwind v4, App Router,
@@ -339,4 +356,16 @@ was broken by a mistake in how I recovered from `rm -rf .next`:
 **Tomorrow's first move:** hold for the user to confirm the page now
 renders correctly in their own Safari, then Feature 4 — `data/patterns.json`
 (8 simulated Mexican scam scripts) and `lib/patterns.ts` to score the
+redacted text against them.
+
+## 2026-10-03 — User confirmed layout works; two items deferred
+
+User checked the redesign in real Safari: layout works. Two remaining
+issues (placeholder still wraps early; form card too narrow) logged above
+under "Known issues — pending, final polish pass only" at the user's
+explicit request, not fixed now.
+
+**Tomorrow's first move:** Feature 4 — `data/patterns.json` (8 simulated
+Mexican scam scripts, each with `id`, `name`, `keywords`, `red_flags`,
+`safe_steps`, `"simulated": true`) and `lib/patterns.ts` to score the
 redacted text against them.
