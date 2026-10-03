@@ -67,5 +67,52 @@
   --window-size=WxH` CLI flags, which don't reliably control the viewport
   in this Chrome version.
 
+## 2026-10-03 — Feature 2: Zero-data redaction (client-side)
+
+- `lib/redact.ts` runs CURP → RFC → CLABE → card (Luhn-checked) → phone →
+  email → secret-keyword-value as ordered regex passes, each converting its
+  matches into a `[TYPE HIDDEN]` tag before the next pass runs. The order
+  matters: once a span is replaced with a tag it's just letters in brackets,
+  so a later, looser pass (e.g. the bare-digit phone check) can't re-match
+  digits that already belong to an earlier, more specific tag. Email and the
+  secret-keyword pass run first since URLs are protected before any of this
+  (see below) and emails/keywords are the most self-contained shapes.
+- URLs are swapped out for a private-use-Unicode-wrapped index
+  (`<n>`) before any redaction pass runs, then swapped back in
+  at the end — not a plain word like `"URL"`, which a real message could
+  contain verbatim and which would then collide with the restore step.
+- Card vs. CLABE: CLABE requires exactly 18 *contiguous* digits (no spaces
+  or dashes allowed by the packet's definition); the card pass only
+  considers 13-19 digit runs that are Luhn-valid. An 18-digit run typed with
+  no separators is reported as CLABE, not card — the packet doesn't ask for
+  that ambiguity to be resolved any other way.
+- Picked vitest 3.2.7 over the latest 5.x line: vitest 5 requires
+  `@types/node` ^22 or >=24, but `create-next-app`'s template pins `^20`,
+  and bumping that major for one test runner felt like more risk than it
+  was worth. vitest 3 declares `@types/node` `^18 || ^20 || >=22`, so it
+  installs clean against what's already there.
+- 19 unit tests in `lib/redact.test.ts` (packet asked for 12+), including
+  the two required false-positive cases (an order number like "Pedido 4521"
+  stays untouched; a non-Luhn 16-digit number is not tagged as a card), a
+  Luhn-valid 19-digit card that must not be mistaken for an 18-digit CLABE,
+  a URL whose digits must survive untouched, and an invariant test that the
+  number of `[... HIDDEN]` tags in the output always equals the sum of
+  `found[].count`.
+- The live preview (`app/page.tsx`) keeps the real `<textarea>` showing
+  exactly what the owner typed, and adds a separate "What we'll check" box
+  below it rendering the redacted text with the `[TYPE HIDDEN]` tags as grey
+  pills, plus the green "N private details hidden" note — rather than
+  swapping the textarea's own content, so the owner can always see both
+  what they wrote and what will actually be sent.
+- Verified the live-typing behavior with a real headless Chrome tab driven
+  over the DevTools Protocol (`Input.insertText` into the focused textarea,
+  then read `textarea.value` and the rendered pill count back out) rather
+  than just trusting the unit tests — confirmed the pill count and the
+  green note's number match exactly, and that nothing overflows at 390px
+  while typing a long message.
+
+**Tomorrow's first move:** Feature 3 — `POST /api/check` (validated,
+redacted-text-only) wired up to the button, which is still inert.
+
 **Tomorrow's first move:** build `lib/redact.ts` (Feature 2 — client-side
 zero-data redaction) with its Vitest suite.

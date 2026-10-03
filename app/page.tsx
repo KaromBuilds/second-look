@@ -1,3 +1,8 @@
+"use client";
+
+import { useMemo, useState, type ReactNode } from "react";
+import { redact } from "@/lib/redact";
+
 function ShieldSearchIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -23,7 +28,44 @@ function ShieldSearchIcon({ className }: { className?: string }) {
   );
 }
 
+const HIDDEN_TAG_RE = /\[(?:CURP|RFC|CARD|CLABE|PHONE|EMAIL|SECRET) HIDDEN\]/g;
+
+// Renders the redacted text with each "[... HIDDEN]" tag as a grey pill,
+// matching the mockup, instead of showing the raw brackets as plain text.
+function renderPreview(clean: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let key = 0;
+
+  for (const match of clean.matchAll(HIDDEN_TAG_RE)) {
+    const index = match.index;
+    if (index > lastIndex) {
+      nodes.push(clean.slice(lastIndex, index));
+    }
+    nodes.push(
+      <span
+        key={key++}
+        className="inline-block whitespace-nowrap rounded-full bg-zinc-200 px-2.5 py-0.5 text-base font-medium text-zinc-600"
+      >
+        {match[0]}
+      </span>,
+    );
+    lastIndex = index + match[0].length;
+  }
+
+  if (lastIndex < clean.length) {
+    nodes.push(clean.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
 export default function Home() {
+  const [message, setMessage] = useState("");
+  const { clean, found } = useMemo(() => redact(message), [message]);
+  const totalHidden = found.reduce((sum, item) => sum + item.count, 0);
+  const hasText = message.trim().length > 0;
+
   return (
     <div className="min-h-full bg-white">
       <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-5 py-10 sm:px-8">
@@ -49,10 +91,32 @@ export default function Home() {
             id="message"
             name="message"
             rows={8}
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
             placeholder="Hola, soy tu proveedor, cambiamos de cuenta bancaria..."
             className="w-full resize-none rounded-2xl border border-zinc-200 bg-white p-4 text-lg leading-relaxed text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
           />
         </div>
+
+        {hasText && (
+          <div className="flex flex-col gap-2">
+            <p className="text-lg font-medium text-zinc-700">
+              What we&apos;ll check
+            </p>
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-lg leading-relaxed text-zinc-900">
+              {renderPreview(clean)}
+            </div>
+            <p className="flex items-center gap-2 text-base font-medium text-brand">
+              <span
+                className="h-2 w-2 shrink-0 rounded-full bg-brand"
+                aria-hidden="true"
+              />
+              {totalHidden} private{" "}
+              {totalHidden === 1 ? "detail" : "details"} hidden before
+              checking — nothing was sent.
+            </p>
+          </div>
+        )}
 
         <button
           type="button"
