@@ -139,7 +139,7 @@ export default function Home() {
   return (
     <div className="min-h-full bg-white">
       <main className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-8 lg:px-12 lg:py-20">
-        <div className="flex flex-col gap-12 lg:grid lg:grid-cols-[1fr_440px] lg:items-start lg:gap-16">
+        <div className="flex flex-col gap-12 lg:grid lg:grid-cols-[3fr_2fr] lg:items-start lg:gap-16">
           {/* Hero */}
           <div className="flex flex-col gap-6 lg:gap-8">
             <header className="flex items-center gap-3 lg:gap-4">
@@ -191,16 +191,31 @@ export default function Home() {
               >
                 Paste the message you received
               </label>
-              <textarea
-                id="message"
-                name="message"
-                rows={8}
-                cols={1}
-                value={message}
-                onChange={(event) => handleMessageChange(event.target.value)}
-                placeholder="Hi, this is your supplier, we changed bank accounts..."
-                className="w-full resize-none rounded-2xl border border-zinc-200 bg-white p-4 text-lg leading-relaxed text-zinc-900 shadow-sm transition-colors duration-150 placeholder:text-zinc-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 lg:text-[19px]"
-              />
+              <div className="relative">
+                {message === "" && (
+                  // A plain positioned div, not the native `placeholder`
+                  // attribute — some WebKit builds wrap native textarea
+                  // placeholder text using a narrower measure than the
+                  // element's actual CSS width (see DECISIONS.md). A div
+                  // wraps with ordinary block text layout, so it can't
+                  // inherit that bug no matter which engine renders it.
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 p-4 text-lg leading-relaxed text-zinc-400 lg:text-[19px]"
+                  >
+                    Hi, this is your supplier, we changed bank accounts...
+                  </div>
+                )}
+                <textarea
+                  id="message"
+                  name="message"
+                  rows={8}
+                  cols={1}
+                  value={message}
+                  onChange={(event) => handleMessageChange(event.target.value)}
+                  className="w-full resize-none rounded-2xl border border-zinc-200 bg-white p-4 text-lg leading-relaxed text-zinc-900 shadow-sm transition-colors duration-150 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 lg:text-[19px]"
+                />
+              </div>
             </div>
 
             {hasText && (
@@ -208,7 +223,7 @@ export default function Home() {
                 <p className="text-lg font-medium text-zinc-700">
                   What we&apos;ll check
                 </p>
-                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-lg leading-relaxed text-zinc-900">
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-lg leading-relaxed break-words text-zinc-900">
                   {renderPreview(clean)}
                 </div>
                 <p className="flex items-center gap-2 text-base font-medium text-brand">
@@ -241,7 +256,7 @@ export default function Home() {
           className="mt-10 flex flex-col gap-2 lg:mt-14"
         >
           {status === "error" && errorMessage && (
-            <p className="rounded-2xl border border-warning/30 bg-warning-light px-4 py-3 text-base font-medium text-warning lg:mx-auto lg:max-w-3xl lg:px-6 lg:py-4 lg:text-lg">
+            <p className="rounded-2xl border border-warning/30 bg-warning-light px-4 py-3 text-base font-medium text-warning lg:max-w-2xl lg:px-6 lg:py-4 lg:text-lg">
               {errorMessage}
             </p>
           )}
@@ -259,6 +274,16 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        <footer className="mt-16 border-t border-zinc-100 pt-8 lg:mt-24">
+          <p className="text-sm leading-relaxed text-zinc-400">
+            <span className="font-medium text-zinc-500">
+              About &amp; privacy:
+            </span>{" "}
+            Second Look stores nothing. Private details are hidden on your
+            device before checking. Pattern library is simulated.
+          </p>
+        </footer>
       </main>
     </div>
   );

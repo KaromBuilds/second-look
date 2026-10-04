@@ -38,7 +38,7 @@ export default function ResultCard({
   const style = VERDICT_STYLE[result.verdict];
 
   return (
-    <div className="flex flex-col gap-6 lg:mx-auto lg:max-w-3xl">
+    <div className="flex flex-col gap-6 lg:max-w-3xl">
       <div className="overflow-hidden rounded-3xl border border-zinc-200 shadow-md">
         <div className={`${style.header} px-6 py-5`}>
           <p className="text-xl font-bold text-white sm:text-2xl">

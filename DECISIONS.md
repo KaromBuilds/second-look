@@ -2,26 +2,10 @@
 
 ## Known issues — pending, final polish pass only
 
-Confirmed by the user in real Safari on 2026-10-03, after the layout
-redesign. Explicitly deferred — do not fix until the final polish pass
-(packet §9/§11 territory), not during feature work:
-
-- Placeholder text still wraps early in real Safari ("Hi, this is your /
-  supplier, we...") even though `cols={1}` was set specifically to make
-  CSS width the only sizing signal and this was verified fixed in
-  Playwright's WebKit build. Real Safari.app evidently still doesn't
-  agree — needs a fresh look (possibly a different mechanism than the
-  `cols`/wrap-measure one already fixed, since that one measurably works
-  in WebKit 26.6).
-- The form card (right column on desktop, the bordered box with the
-  textarea and button) is too narrow. Current width is a fixed
-  `lg:grid-cols-[1fr_440px]` — needs a wider or more flexible value.
-- Long URLs overflow the "What we'll check" preview box to the right
-  instead of wrapping. Confirmed by the user in real Safari on 2026-10-03,
-  after the Safe Browsing feature (where the dangerous-link warning itself
-  was confirmed working correctly). Needs a `break-all`/`overflow-wrap`
-  rule on the preview box or on the URL segment specifically, since a URL
-  is one long unbreakable token with no natural wrap points.
+(All items resolved in the Feature 9 entry below, dated 2026-10-03 —
+placeholder wrap, form card width, URL overflow, and result card
+alignment. This section is kept as a heading in case the final polish
+pass turns up something new.)
 
 ## 2026-10-03 — Feature 1: Scaffold and static UI
 
@@ -678,3 +662,99 @@ help" escalation card) to replace today's interim rendering.
 
 **Tomorrow's first move:** Feature 8 — push to GitHub, import into Vercel,
 set the three env vars, deploy.
+
+## 2026-10-03 — Feature 8: Deploy 1
+
+Pushed to `github.com/KaromBuilds/second-look` (branch `main`, 14
+commits). Before pushing, re-verified no secrets anywhere in the full git
+history: `git log --all -p` grepped for Google API key patterns
+(`AIzaSy...`, `AQ....`) and for `GEMINI_API_KEY=`/`SAFE_BROWSING_API_KEY=`
+with a non-empty value — zero matches across every commit; `.env.local`
+was never committed at any point in history. The user imported the repo
+into Vercel themselves, added the three env vars there, and confirmed the
+live site at https://second-look-tau.vercel.app works end to end,
+including a real Gemini call in production. Vercel is now set to
+auto-deploy on every push to `main`.
+
+## 2026-10-03 — Feature 9: Security floor + polish fixes + test plan
+
+**Security floor** (packet §9), all verified directly rather than assumed:
+- No secrets in the repo or its history — re-ran the same full-history
+  grep from the Feature 8 entry above; still zero matches.
+- `.env*` is gitignored (with the `!.env.example` exception from Feature
+  1); confirmed `git ls-files` lists only `.env.example`, never
+  `.env.local`.
+- Input limits are enforced server-side, not just in the browser:
+  `app/api/check/route.ts` calls the same `friendlyCheckError` the client
+  calls, independently, before doing anything else — unchanged since
+  Feature 3, re-confirmed present.
+- Nothing personal is stored anywhere: grepped `app/`, `lib/`, and
+  `components/` for any `console.*` call outside test files (zero
+  matches) and for any database/file-persistence code (`fs.write`,
+  `prisma`, `supabase`, etc. — zero matches). `package.json` has no
+  analytics, auth, or database dependency of any kind — just Next.js,
+  React, Tailwind, and Vitest.
+- Demo/test messages throughout this project (in `data/patterns.json` and
+  every example used for verification) are invented scam scripts, never
+  real correspondence.
+- Added the "About & privacy" footer with the packet's exact text:
+  "Second Look stores nothing. Private details are hidden on your device
+  before checking. Pattern library is simulated."
+
+**Polish fixes** — all four items from the pending list:
+- **Form card too narrow:** `lg:grid-cols-[1fr_440px]` → `lg:grid-cols-[3fr_2fr]`,
+  a proportional split instead of a fixed pixel column, so the card scales
+  with the viewport instead of being capped at 440px regardless of screen
+  size. Measured 476px at 1440px wide (up from 440px) and confirmed it
+  scales, not just a one-off bump.
+- **Result card not aligned with the rest of the page:** both the
+  previous interim card and the Feature 7 `ResultCard` centered themselves
+  independently (`lg:mx-auto lg:max-w-3xl`) inside a container that was
+  already aligned with the hero/form grid above it — so the card looked
+  like it was floating in the middle of the page instead of lining up
+  with the left-aligned content above it. Removed `lg:mx-auto` (kept
+  `lg:max-w-3xl` for readable line length) from `ResultCard` and from the
+  error-message paragraph; both now left-align to the same edge as the
+  "Second Look" title. Confirmed via WebKit: hero `<h1>` and the result
+  card's left edge both measured at the same x-position.
+- **Long URLs overflowing "What we'll check":** added `break-words`
+  (`overflow-wrap: break-word`) to the preview box. A URL has no spaces or
+  hyphens for the browser's default word-wrap to break on, so without
+  this it's treated as one unbreakable token and pushed past the box's
+  edge; `break-words` allows a break inside the token only when it
+  wouldn't otherwise fit, which is the correct minimal fix (as opposed to
+  `break-all`, which would also break short ordinary words anywhere,
+  including mid-syllable).
+- **Placeholder wrapping early, for real this time:** given two previous
+  fixes (the `cols={1}` attribute, then confirming it worked in
+  Playwright's WebKit 26.6) didn't resolve it in the user's actual
+  Safari, the real fix was to stop trying to patch the *mechanism* and
+  remove the dependency on it entirely — replaced the native `placeholder`
+  attribute with a plain, absolutely-positioned `<div>` shown only while
+  `message === ""`, styled to exactly match the textarea's padding and
+  font. A `<div>`'s text wraps via completely ordinary block-level CSS
+  layout; there is no `cols`/intrinsic-width-driven wrap-measure code path
+  for it to inherit, in any browser, by construction — this isn't "fixed
+  in the browsers tested," it's "the category of bug no longer applies."
+  Re-verified in WebKit 26.6 one more time given this bug's history:
+  overlay width now measures identical to the textarea's own width
+  (294.5px, matching the new narrower-grid 390px layout), and it wraps
+  "Hi, this is your supplier, we" / "changed bank accounts..." across the
+  full box width rather than a narrow fraction of it.
+- The accessible name for the textarea is unaffected — the visible
+  `<label htmlFor="message">` already provided it; the native
+  `placeholder` attribute was redundant with it before, not load-bearing.
+
+**Test plan** (packet §11) — results recorded in `docs/TEST_RESULTS.md`.
+Per the standing no-live-Gemini-calls rule: tests needing a Gemini
+response used the same Chrome DevTools Protocol `Fetch.fulfillRequest`
+interception technique from Feature 7 (the real client code runs for
+real — real redaction, real request, real rendering — only the network
+response is a fixture), clearly labeled as such in the results doc. Test
+4's Safe Browsing check ran live against the real API (not Gemini, no
+quota concern raised for it, and this reuses Feature 5's already-proven
+integration). See `docs/TEST_RESULTS.md` for the full row-by-row results,
+including the persona walkthrough for test 8.
+
+**Tomorrow's first move:** hold for the user's review of Deploy 2; next
+would be a final look at `docs/TEST_RESULTS.md`'s open items, if any.
