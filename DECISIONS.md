@@ -753,8 +753,18 @@ real — real redaction, real request, real rendering — only the network
 response is a fixture), clearly labeled as such in the results doc. Test
 4's Safe Browsing check ran live against the real API (not Gemini, no
 quota concern raised for it, and this reuses Feature 5's already-proven
-integration). See `docs/TEST_RESULTS.md` for the full row-by-row results,
-including the persona walkthrough for test 8.
+integration). Also discovered one path tests 4/7 share needed to run for
+real rather than mocked: started a second server with `GEMINI_API_KEY`
+unset (`GEMINI_MODEL` still set) — `lib/gemini.ts` fails in milliseconds
+with zero network calls, which lets Safe Browsing stay live for test 4
+while genuinely exercising `buildFallbackVerdict` (not a fixture standing
+in for it) for both tests at once. See `docs/TEST_RESULTS.md` for the
+full row-by-row results, including the persona walkthrough for test 8 —
+which found the confidence percentage ("Confidence 92%") unlikely to mean
+anything to a non-technical reader with no baseline to judge it against;
+fixed with a plain-language qualifier (`confidenceLabel()` in
+`components/ResultCard.tsx`: "Very sure" / "Fairly sure" / "Not very
+sure" alongside the number) and re-verified.
 
 **Tomorrow's first move:** hold for the user's review of Deploy 2; next
 would be a final look at `docs/TEST_RESULTS.md`'s open items, if any.

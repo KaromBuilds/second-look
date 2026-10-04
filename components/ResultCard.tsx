@@ -1,5 +1,16 @@
 import type { CheckResult, VerdictLabel } from "@/lib/verdict";
 
+// A raw percentage asks the reader to supply their own sense of what
+// counts as "high" — found during the Don Ramiro persona walkthrough to
+// be a likely stumble for a non-technical reader with no baseline to
+// compare it to. A plain-language qualifier next to the number removes
+// that translation step entirely.
+function confidenceLabel(confidence: number): string {
+  if (confidence >= 80) return "Very sure";
+  if (confidence >= 60) return "Fairly sure";
+  return "Not very sure";
+}
+
 const VERDICT_STYLE: Record<
   VerdictLabel,
   { label: string; header: string; band: string; text: string }
@@ -49,7 +60,7 @@ export default function ResultCard({
         <div className={`${style.band} px-6 py-4`}>
           <div className="flex items-center gap-3">
             <p className={`shrink-0 text-base font-medium ${style.text}`}>
-              Confidence {result.confidence}%
+              Confidence {result.confidence}% — {confidenceLabel(result.confidence)}
             </p>
             <div
               role="progressbar"
